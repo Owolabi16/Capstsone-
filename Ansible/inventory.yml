@@ -1,0 +1,13 @@
+[ansibleworker3]
+10.0.1.75
+
+[ansibleworker2]
+10.0.1.38
+
+[ansibleworker1]
+10.0.1.208
+
+[targetnodes:children]
+ansibleworker3
+ansibleworker2
+ansibleworker1

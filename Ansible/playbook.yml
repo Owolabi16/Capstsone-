@@ -1,0 +1,5 @@
+- hosts: targetnodes
+  name: Deploying simple html app
+  become: true
+  roles:
+  - webapp

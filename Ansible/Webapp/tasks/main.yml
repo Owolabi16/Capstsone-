@@ -1,0 +1,27 @@
+- name: update the server
+  shell: yum update -y
+
+- name: install httpd web server
+  yum:
+    name: "{{ proservername }}"
+    state: "{{ projectsevstate }}"
+
+- name: Start the httpd service
+  service:
+    name: "{{ proservername }}"
+    state: "{{ prosvcstate }}"
+
+- name: Install unzip
+  yum:
+    name: unzip
+    state: "{{ projectsevstate }}"
+
+- name: Download simple html app
+  unarchive:
+    src: "{{ projectcode }}"
+    dest: "{{ htmlfolder }}"
+    remote_src: yes
+
+- name: Copy folder content
+  shell: cd "{{ htmlfolder }}"/musical-concert-page-main &&
+         cp -r * "{{ htmlfolder }}"

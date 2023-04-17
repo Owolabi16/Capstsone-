@@ -1,0 +1,5 @@
+proservername: httpd
+projectsevstate: present
+prosvcstate: started
+projectcode: https://github.com/Elerqsousy/musical-concert-page/archive/refs/heads/main.zip
+htmlfolder: /var/www/html
