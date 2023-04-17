@@ -1,0 +1,65 @@
+pipeline {
+    agent any
+
+    environment {
+        SERVICE_NAME = "capstone"
+        ORGANIZATION_NAME = "Owolabialiu"
+        DOCKERHUB_USERNAME = "Owolabialiu"
+        REPOSITORY_TAG = "${DOCKERHUB_USERNAME}/${ORGANIZATION_NAME}-${SERVICE_NAME}:${BUILD_ID}"
+    }
+
+    stages {
+
+
+        stage("buiud the docker image") {
+            steps{
+                sh 'docker build -t ${REPOSITORY_TAG} .'
+            }
+        }
+
+        stage("push the image to docker hub") {
+            steps{
+                withDockerRegistry([credentialsId: 'dockerhub-credentials' , url: ""]) {
+                    sh 'docker push ${REPOSITORY_TAG}'
+                }
+                
+            }
+        }
+
+        stage("deploy the kubernetes cluster") {
+            steps{
+                sh 'aws eks update-kubeconfig --region eu-west-2 --name aliu_eks_cluster'
+                sh ' envsubst < ${WORKSPACE}/deployment.yml | ./kubectl apply -f - '
+                
+            }
+        }
+        stage("Setup Nginx Ingress Controller") {
+            steps {
+                script {
+                    sh "kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.46.0/deploy/static/provider/aws/deploy.yaml"
+                }
+            }
+        }
+
+        stage("Setup Monitoring Stack") {
+            steps {
+                script {
+                    sh "kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/release-0.49/example/prometheus-operator-crd/alertmanager.crd.yaml"
+                    sh "kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/release-0.49/example/prometheus-operator-crd/prometheus.crd.yaml"
+                    sh "kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/release-0.49/example/prometheus-operator-crd/prometheusrule.crd.yaml"
+                    sh "kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/release-0.49/example/prometheus-operator-crd/servicemonitor.crd.yaml"
+                    sh "kubectl create namespace monitoring"
+                    sh "kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/release-0.49/bundle.yaml -n monitoring"
+                    sh "kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/release-0.49/example/prometheus-operator/alertmanager.yaml -n monitoring"
+                    sh "kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/release-0.49/example/prometheus-operator/prometheus.yaml -n monitoring"
+                    sh "kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/release-0.49/example/prometheus-operator/prometheusrule.yaml -n monitoring"
+                    sh "kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/release-0.49/example/prometheus-operator/servicemonitor.yaml -n monitoring"
+                    sh "kubectl apply -f https://raw.githubusercontent.com/prometheus-community/grafana-operator/main/deploy/crds/grafana.org_grafanadashboards_crd.yaml"
+                    sh "kubectl apply -f https://raw.githubusercontent.com/prometheus-community/grafana-operator/main/deploy/crds/grafana.org_grafanadatasources_crd.yaml"
+                    sh "helm repo add grafana https://grafana.github.io/helm-charts"
+                    sh "helm install grafana grafana/grafana --namespace monitoring --set persistence.enabled=false --set adminPassword=admin
+                }
+            }
+        }
+    }
+}
